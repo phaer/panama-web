@@ -12,7 +12,7 @@ import WebSocket
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Json.Encode exposing (int, string)
+import Json.Encode as JE
 import Json.Decode as JD
 
 websocket : String
@@ -42,6 +42,7 @@ type alias PlaylistItem =
     , sourceUrl : String
     , current : Bool
     , index : Int
+    , loading : Bool
     }
 type alias Playlist = List PlaylistItem
 
@@ -56,30 +57,45 @@ type Msg
     | PlaylistRemove Int
     | PlaylistSelect Int
 
+
 -- # Init
 init : (Model, Cmd Msg)
 init =
     (Model "" "" False 0 0 [], sendCommand "update")
 
-sendJsonList : List Json.Encode.Value -> Cmd a
-sendJsonList l = WebSocket.send websocket <| Json.Encode.encode 0 <| Json.Encode.list l
+sendJsonList : List JE.Value -> Cmd a
+sendJsonList l = WebSocket.send websocket <| JE.encode 0 <| JE.list l
 
 sendCommand : String -> Cmd a
 sendCommand cmd =
-    sendJsonList [string cmd]
+    sendJsonList [JE.string cmd]
 
-sendProperty : String -> Json.Encode.Value -> Cmd a
+sendProperty : String -> JE.Value -> Cmd a
 sendProperty n v =
-    sendJsonList [string n, v]
+    sendJsonList [JE.string n, v]
 
 playlistDecoder : JD.Decoder Playlist
 playlistDecoder =
-    JD.list <| JD.map5 PlaylistItem
+    JD.list <| JD.map6 PlaylistItem
         (JD.maybe (JD.field "title" JD.string))
         (JD.maybe (JD.field "media_url" JD.string))
         (JD.field "source_url" JD.string)
         (JD.oneOf [JD.field "current" JD.bool, JD.succeed False])
         (JD.field "index" JD.int)
+        (JD.oneOf [JD.field "loading" JD.bool, JD.succeed False])
+
+encodePlaylistItem : PlaylistItem -> JE.Value
+encodePlaylistItem item =
+    JE.object [ ("title", Maybe.withDefault JE.null (Maybe.map JE.string item.title))
+              , ("media_url", Maybe.withDefault JE.null (Maybe.map JE.string item.mediaUrl))
+              , ("source_url", JE.string item.sourceUrl)
+              , ("current", JE.bool item.current)
+              , ("index", JE.int item.index)
+              , ("loading", JE.bool item.loading)
+        ]
+
+encodePlaylist : Playlist -> JE.Value
+encodePlaylist playlist = JE.list <| List.map encodePlaylistItem playlist
 
 decodeModel : String -> Model
 decodeModel s =
@@ -94,6 +110,18 @@ modelDecoder = JD.map4 (Model "" "")
                (JD.field "position" JD.int)
                (JD.field "playlist" playlistDecoder)
 
+encodeModel : Model -> JE.Value
+encodeModel model =
+    JE.object [ ("currentInput", JE.string model.currentInput)
+              , ("status", JE.string model.status)
+              , ("playing", JE.bool model.playing)
+              , ("volume", JE.int model.volume)
+              , ("position", JE.int model.position)
+              , ("playlist", encodePlaylist model.playlist)
+              ]
+
+
+
 setCurrentItem: Model -> Int -> Model
 setCurrentItem m i = {m | playlist = List.indexedMap (\n p -> {p | current = n == i}) m.playlist}
 
@@ -101,15 +129,15 @@ setCurrentItem m i = {m | playlist = List.indexedMap (\n p -> {p | current = n =
 -- # Update
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-  case Debug.log "msg" msg of
+  case msg of
     TogglePlay ->
       ({model | playing = (not model.playing)}, sendCommand "toggle-play")
 
     VolumeChanged v ->
-      ({model | volume = v}, int v |> sendProperty "volume")
+      ({model | volume = v}, JE.int v |> sendProperty "volume")
 
     PositionChanged p ->
-      ({model | position = p}, int p |> sendProperty "position")
+      ({model | position = p}, JE.int p |> sendProperty "position")
 
     PlaylistChanged pl ->
       ({model | playlist = pl}, Cmd.none)
@@ -121,13 +149,13 @@ update msg model =
       ({model | currentInput = i}, Cmd.none)
 
     PlaylistAdd i ->
-      ({model | currentInput = ""}, string i |> sendProperty "playlist-add")
+      ({model | currentInput = ""}, JE.string i |> sendProperty "playlist-add")
 
     PlaylistRemove i ->
-      (model, int i |> sendProperty "playlist-remove")
+      (model, JE.int i |> sendProperty "playlist-remove")
 
     PlaylistSelect i ->
-      (setCurrentItem model i, int i |> sendProperty "playlist-select")
+      (setCurrentItem model i, JE.int i |> sendProperty "playlist-select")
 
 -- # Subscriptions
 subscriptions : Model -> Sub Msg
@@ -139,10 +167,18 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   div [ ]
-    [ viewLog model,
-      viewControls model
-    , viewPlaylist model
-    ]
+      [ viewDebug model,
+        viewLog model,
+        viewControls model
+      , viewPlaylist model
+      ]
+
+viewDebug : Model -> Html Msg
+viewDebug model =
+    div [class "debug", style [("float", "right")]]
+        [ pre []
+              [text <| JE.encode 2 <| encodeModel model]
+        ]
 
 viewLog : Model -> Html Msg
 viewLog model = div [class "log"] [text model.status]
@@ -217,9 +253,16 @@ viewPlaylist model =
       (List.map viewPlaylistItem model.playlist)
     ]
 
+viewPlaylistItemClasses : PlaylistItem -> String
+viewPlaylistItemClasses item =
+    ("playlist-item"
+         ++ if item.current then " current" else ""
+         ++ if item.loading then " loading" else "")
+
 viewPlaylistItem : PlaylistItem -> Html Msg
-viewPlaylistItem item = li [ class ("playlist-item" ++ if item.current then " current" else "")]
+viewPlaylistItem item = li [ class <| viewPlaylistItemClasses item]
                         [ span [ onClick <| PlaylistSelect item.index] [text item.sourceUrl]
+                        , span [] [text <| if item.loading then " LOADING! " else ""]
                         , button [ onClick <| PlaylistRemove item.index] [text "delete"]
                         ]
 
