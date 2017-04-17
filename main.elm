@@ -41,6 +41,7 @@ type alias PlaylistItem =
     , mediaUrl : Maybe String
     , sourceUrl : String
     , current : Bool
+    , playing : Bool
     , index : Int
     , loading : Bool
     }
@@ -76,11 +77,12 @@ sendProperty n v =
 
 playlistDecoder : JD.Decoder Playlist
 playlistDecoder =
-    JD.list <| JD.map6 PlaylistItem
+    JD.list <| JD.map7 PlaylistItem
         (JD.maybe (JD.field "title" JD.string))
         (JD.maybe (JD.field "media_url" JD.string))
         (JD.field "source_url" JD.string)
         (JD.oneOf [JD.field "current" JD.bool, JD.succeed False])
+        (JD.oneOf [JD.field "playing" JD.bool, JD.succeed False])
         (JD.field "index" JD.int)
         (JD.oneOf [JD.field "loading" JD.bool, JD.succeed False])
 
@@ -90,6 +92,7 @@ encodePlaylistItem item =
               , ("media_url", Maybe.withDefault JE.null (Maybe.map JE.string item.mediaUrl))
               , ("source_url", JE.string item.sourceUrl)
               , ("current", JE.bool item.current)
+              , ("playing", JE.bool item.playing)
               , ("index", JE.int item.index)
               , ("loading", JE.bool item.loading)
         ]
