@@ -14,6 +14,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Encode as JE
 import Json.Decode as JD
+import Http
 
 websocket : String
 websocket = "ws://127.0.0.1:3000/socket"
@@ -30,12 +31,18 @@ main =
 type alias Model =
     { currentInput : String
     , status : String
+    , searchResults : List SearchItem
     , playing : Bool
     , volume : Int
     , position : Int
     , playlist : List PlaylistItem
     }
 
+type alias SearchItem =
+    { title : String
+    , sourceUrl : String
+    , thumbnail : Maybe String
+    }
 type alias PlaylistItem =
     { title : Maybe String
     , mediaUrl : Maybe String
@@ -57,12 +64,13 @@ type Msg
     | PlaylistAdd String
     | PlaylistRemove Int
     | PlaylistSelect Int
+    | SearchChanged (Result Http.Error (List SearchItem))
 
 
 -- # Init
 init : (Model, Cmd Msg)
 init =
-    (Model "" "" False 0 0 [], sendCommand "update")
+    (Model "" "" [] False 0 0 [], sendCommand "update")
 
 sendJsonList : List JE.Value -> Cmd a
 sendJsonList l = WebSocket.send websocket <| JE.encode 0 <| JE.list l
@@ -100,14 +108,33 @@ encodePlaylistItem item =
 encodePlaylist : Playlist -> JE.Value
 encodePlaylist playlist = JE.list <| List.map encodePlaylistItem playlist
 
+searchDecoder : JD.Decoder (List SearchItem)
+searchDecoder =
+    JD.field "results" <| JD.list <| JD.map3 SearchItem
+        (JD.field "title" JD.string)
+        (JD.field "url" JD.string)
+        (JD.maybe (JD.field "thumbnail" JD.string))
+
+getSearchResults : String -> Cmd Msg
+getSearchResults query =
+  if
+    query == "" || String.startsWith "http" query
+  then
+    Cmd.none
+  else
+    let
+      url = "https://searx.gotrust.de/?categories=videos&format=json&q=" ++ query
+    in
+      Http.send SearchChanged (Http.get url searchDecoder)
+
 decodeModel : String -> Model
 decodeModel s =
     case JD.decodeString modelDecoder s of
         Ok value -> value
-        Err msg -> Model "" (Debug.log "error: " msg) False 0 0 []
+        Err msg -> Model "" (Debug.log "error: " msg) [] False 0 0 []
 
 modelDecoder : JD.Decoder Model
-modelDecoder = JD.map4 (Model "" "")
+modelDecoder = JD.map4 (Model "" "" [])
                (JD.field "playing" JD.bool)
                (JD.field "volume" JD.int)
                (JD.field "position" JD.int)
@@ -122,7 +149,6 @@ encodeModel model =
               , ("position", JE.int model.position)
               , ("playlist", encodePlaylist model.playlist)
               ]
-
 
 
 setCurrentItem: Model -> Int -> Model
@@ -149,7 +175,7 @@ update msg model =
       (decodeModel m, Cmd.none)
 
     InputChanged i ->
-      ({model | currentInput = i}, Cmd.none)
+      ({model | currentInput = i}, getSearchResults i)
 
     PlaylistAdd i ->
       ({model | currentInput = ""}, JE.string i |> sendProperty "playlist-add")
@@ -159,6 +185,13 @@ update msg model =
 
     PlaylistSelect i ->
       (setCurrentItem model i, JE.int i |> sendProperty "playlist-select")
+
+    SearchChanged (Ok s) ->
+      ({model | searchResults = s}, Cmd.none)
+
+    SearchChanged (Err _) ->
+      (model, Cmd.none)
+
 
 -- # Subscriptions
 subscriptions : Model -> Sub Msg
@@ -174,6 +207,7 @@ view model =
       , viewLog model
       , viewInput model
       , viewControls model
+      , viewSearch model
       , viewPlaylist model
       , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "./css/panama.css" ] []
       ]
@@ -243,6 +277,30 @@ viewControls model =
     , slider "🔊" model.volume (parseIntWithDefault 0 >> VolumeChanged)
     ]
 
+viewSearch : Model -> Html Msg
+viewSearch model =
+  div [class "search-results"]
+    [ ul []
+      (List.map viewSearchItem model.searchResults)
+    ]
+
+viewSearchItem : SearchItem -> Html Msg
+viewSearchItem item =
+  let
+    thumbnail = case item.thumbnail of
+      Nothing ->
+        ""
+
+      Just val ->
+        val
+  in
+    li []
+      [ img [ onClick <| PlaylistAdd item.sourceUrl
+            , src thumbnail
+            ] []
+      , span [ onClick <| PlaylistAdd item.sourceUrl] [text item.title]
+      , a [ href item.sourceUrl, target "_blank"] [text "link"]
+      ]
 
 viewPlaylist : Model -> Html Msg
 viewPlaylist model =
