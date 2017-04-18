@@ -214,7 +214,9 @@ slider n v handler =
 
 viewInput : Model -> Html Msg
 viewInput model =
-    div [class "input"]
+    Html.form [class "input"
+              , onSubmit <| PlaylistAdd model.currentInput
+              ]
         [ label [ for "input-text"
                 ] [text "🔍"]
         , input [ onInput InputChanged
