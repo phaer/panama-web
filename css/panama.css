@@ -1,0 +1,162 @@
+.debug {
+  display: none;
+}
+body, html {
+  font-family: monospace;
+  background-color: black;
+  color: white;
+  width: 100%;
+  height: 100%;
+}
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  flex: 1 0 3rem;
+  text-align: center;
+  display: flex;
+  color: red;
+  align-items: center;
+}
+.input > * {
+  flex: 1 0 3rem;
+  font-size: 2rem;
+  font-family: monospace;
+  background-color: inherit;
+  color: inherit;
+  border: none;
+  padding: 0 0.25rem;
+}
+.input > label {
+  height: 3rem;
+  width: 3rem;
+  color: red;
+  padding: 0;
+}
+.input > .input-text {
+  flex: 1 1 100%;
+  height: 3rem;
+}
+.input > button {
+  cursor: pointer;
+}
+
+.controls {
+  flex: 1 0 3rem;
+  display: flex;
+  font-size: 1rem;
+  font-family: monospace;
+  color: red;
+}
+.controls > * {
+  display: flex;
+  padding: 0 0.25rem;
+}
+.controls > button {
+  flex: 1 0 3rem;
+  background-color: red;
+  color: black;
+  border: none;
+  font-size: inherit;
+  font-weight: bold;
+  height: 3rem;
+  width: 3rem;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.controls > .position {
+  flex: 1 1 100%;
+}
+.controls > .🔊 {
+  flex: 1 1 10%;
+}
+
+.slider {
+  align-items: center;
+}
+.slider .slider-div {
+  flex: 1 1 100%;
+  display: flex;
+}
+.slider .slider-input {
+  flex: 1 1 100%;
+}
+
+.playlist {
+  flex: 1 1 100%;
+  overflow-y: auto;
+}
+.playlist > ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 1rem;
+}
+.playlist > ul li {
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+}
+.playlist > ul li:nth-child(2n+1) {
+  background-color: #222;
+}
+.playlist > ul li span {
+  flex: 1 1 50%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.playlist > ul li a {
+  color: red;
+  font-size: 0.75rem;
+}
+.playlist > ul li button {
+  cursor: pointer;
+  background-color: inherit;
+  color: red;
+  border: none;
+}
+
+.current {
+  color: red;
+}
+.current::before {
+  padding: 0 0.25rem;
+  content: "▶";
+  cursor: default;
+}
+.loading::before {
+  animation: loading 3s linear infinite;
+}
+
+input[type=range] {
+  cursor: pointer;
+}
+input[type=range]::-moz-range-track {
+   height: 5px;
+   background: #ddd;
+   border: none;
+}
+input[type=range]:focus::-moz-range-track {
+   background: #ccc;
+}
+
+@keyframes loading {
+  0% {
+    content: "";
+  }
+  33% {
+    content: ".";
+  }
+  66% {
+    content: "..";
+  }
+  100% {
+    content: "...";
+  }
+}
