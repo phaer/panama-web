@@ -258,8 +258,9 @@ viewPlaylistItemClasses item =
 viewPlaylistItem : PlaylistItem -> Html Msg
 viewPlaylistItem item = li [ class <| viewPlaylistItemClasses item]
                         [ span [ onClick <| PlaylistSelect item.index] [text item.sourceUrl]
-                        , span [] [text <| if item.loading then " LOADING! " else ""]
-                        , button [ onClick <| PlaylistRemove item.index] [text "delete"]
+                        -- , span [] [text <| if item.loading then " LOADING! " else ""]
+                        , a [ href item.sourceUrl, target "_blank"] [text "link"]
+                        , button [ onClick <| PlaylistRemove item.index] [text "×"]
                         ]
 
 viewMessage : String -> Html Msg
