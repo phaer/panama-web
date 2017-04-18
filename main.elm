@@ -260,9 +260,7 @@ viewInput model =
                 , value model.currentInput
                 , class "input-text"
                 ] []
-        , button
-              [ onClick <| PlaylistAdd model.currentInput ]
-              [text "Go!"]
+        , button [] [text "Go!"]
         ]
 
 viewControls : Model -> Html Msg
