@@ -169,10 +169,11 @@ subscriptions model =
 -- # View
 view : Model -> Html Msg
 view model =
-  div [ ]
-      [ viewDebug model,
-        viewLog model,
-        viewControls model
+  div [ class "container" ]
+      [ viewDebug model
+      , viewLog model
+      , viewInput model
+      , viewControls model
       , viewPlaylist model
       , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "./css/panama.css" ] []
       ]
@@ -187,14 +188,6 @@ viewDebug model =
 viewLog : Model -> Html Msg
 viewLog model = div [class "log"] [text model.status]
 
-viewControls : Model -> Html Msg
-viewControls model =
-  div [class "controls"]
-    [ viewInput model
-    , viewVolume model
-    , viewPosition model
-    ]
-
 
 parseIntWithDefault : Int -> String -> Int
 parseIntWithDefault d = String.toInt >> Result.toMaybe >> Maybe.withDefault d
@@ -202,53 +195,52 @@ parseIntWithDefault d = String.toInt >> Result.toMaybe >> Maybe.withDefault d
 
 slider :  String -> Int -> (String -> a) -> Html a
 slider n v handler =
-    div [class <| n ++ " mdl-grid"]
+    div [class <| n ++ " slider"]
         [ label [ for n
-                , class "mdl-cell mdl-cell--1-col"
+                , class "slider-label"
                 ] [text n]
-        , div [ class "mdl-cell mdl-cell--3-col"]
+        , div [ class "slider-div"]
             [ input [ onInput handler
                     , name n
                     , type_ "range"
                     , Html.Attributes.min "0"
                     , Html.Attributes.max "100"
                     , value <| toString v
-                    , class "mdl-slider mdl-js-slider"
+                    , class "slider-input"
                     ] []
             ]
-        , span [ class "mdl-cell mdl-cell-1-col" ] [ text <| toString v ]
+        , span [ class "value" ] [ text <| toString v ]
       ]
 
 viewInput : Model -> Html Msg
 viewInput model =
     div [class "input"]
         [ label [ for "input-text"
-                ] [text "add"]
+                ] [text "🔍"]
         , input [ onInput InputChanged
                 , name "input-text"
                 , type_ "text"
-                , placeholder "media url"
+                , placeholder "Search or enter URL here…"
                 , value model.currentInput
-                , class "mdl-textfield__input mdl-cell mdl-cell--10-col"
+                , class "input-text"
                 ] []
         , button
-              [ onClick <| PlaylistAdd model.currentInput
-              , class "mdl-button mdl-js-button mdl-button--raised mdl-button--colorize mdl-cell mdl-cell--2-col"]
-              [text "Add"]
-        , button
-              [ onClick <| TogglePlay
-              , class "mdl-button mdl-js-button mdl-button--raised mdl-button--colorize mdl-cell mdl-cell--2-col"]
-              [text <| if model.playing then "Pause" else "Play"]
-
+              [ onClick <| PlaylistAdd model.currentInput ]
+              [text "Go!"]
         ]
 
-viewVolume : Model -> Html Msg
-viewVolume model =
-    slider "volume" model.volume (parseIntWithDefault 0 >> VolumeChanged)
+viewControls : Model -> Html Msg
+viewControls model =
+  div [class "controls"]
+    [
+      button
+        [ onClick <| TogglePlay
+        , class <| if model.playing then "pause" else "play" ]
+        [text <| if model.playing then "| |" else "▶"]
+    , slider "position" model.position (parseIntWithDefault 0 >> PositionChanged)
+    , slider "🔊" model.volume (parseIntWithDefault 0 >> VolumeChanged)
+    ]
 
-viewPosition : Model -> Html Msg
-viewPosition model =
-    slider "position" model.position (parseIntWithDefault 0 >> PositionChanged)
 
 viewPlaylist : Model -> Html Msg
 viewPlaylist model =
