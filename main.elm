@@ -174,6 +174,7 @@ view model =
         viewLog model,
         viewControls model
       , viewPlaylist model
+      , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "./css/panama.css" ] []
       ]
 
 viewDebug : Model -> Html Msg
