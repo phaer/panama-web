@@ -131,7 +131,7 @@ body, html {
   cursor: default;
 }
 .loading::before {
-  content: "Loading… ";
+  animation: loading 3s linear infinite;
 }
 
 input[type=range] {
@@ -144,4 +144,19 @@ input[type=range]::-moz-range-track {
 }
 input[type=range]:focus::-moz-range-track {
    background: #ccc;
+}
+
+@keyframes loading {
+  0% {
+    content: "";
+  }
+  33% {
+    content: ".";
+  }
+  66% {
+    content: "..";
+  }
+  100% {
+    content: "...";
+  }
 }
