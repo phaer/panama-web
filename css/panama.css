@@ -9,6 +9,8 @@ body, html {
   height: 100%;
 }
 .container {
+  max-width: 60rem;
+  margin: 0 auto;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -38,10 +40,15 @@ body, html {
 }
 .input > .input-text {
   flex: 1 1 100%;
+  min-width: 0;
   height: 3rem;
+  border-bottom: 1px red dashed;
 }
 .input > button {
   cursor: pointer;
+  background-color: red;
+  color: black;
+  height: 3rem;
 }
 
 .controls {
@@ -56,7 +63,7 @@ body, html {
   padding: 0 0.25rem;
 }
 .controls > button {
-  flex: 1 0 3rem;
+  flex-shrink: 0;
   background-color: red;
   color: black;
   border: none;
@@ -69,21 +76,75 @@ body, html {
   cursor: pointer;
 }
 .controls > .position {
-  flex: 1 1 100%;
+  flex: 1 1 50%;
+  min-width: 0;
 }
 .controls > .🔊 {
-  flex: 1 1 10%;
+  flex: 1 0 20%;
+  min-width: 0;
 }
 
 .slider {
   align-items: center;
 }
+.slider > * {
+  min-width: 0;
+  flex-shrink: 0;
+  padding: 0 0.25rem;
+}
 .slider .slider-div {
   flex: 1 1 100%;
-  display: flex;
 }
 .slider .slider-input {
+  width: 100%;
+}
+
+.search-results {
+  max-height: 50%;
+  overflow-x: auto;
+  border: 1px red solid;
+}
+.search-results::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.search-results::-webkit-scrollbar-track {
+  background-color: red;
+}
+.search-results::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.5);
+}
+.search-results ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 1rem;
+}
+.search-results ul > li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px red dashed;
+}
+.search-results ul > li:first-child {
+  border-top: none;
+}
+.search-results ul span {
   flex: 1 1 100%;
+  font-weight: bold;
+  padding: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.search-results ul li img {
+  width: 20%;
+  cursor: pointer;
+}
+.search-results ul li a {
+  color: red;
+  font-size: 0.75rem;
+  padding-right: 0.25rem;
 }
 
 .playlist {
@@ -135,15 +196,49 @@ body, html {
 }
 
 input[type=range] {
+  -webkit-appearance: none;
+  margin: 0;
+  width: 100%;
+  background: transparent;
+}
+input[type=range]:focus {
+  outline: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 0.5rem;
   cursor: pointer;
+  animate: 0.2s;
+  background: rgba(255,0,0,0.2);
+  border-radius: 1rem;
+}
+input[type=range]::-webkit-slider-thumb {
+  height: 1rem;
+  width: 1rem;
+  border-radius: 50%;
+  background: red;
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -0.25rem;
+}
+input[type=range]:focus::-webkit-slider-runnable-track {
+  background: rgba(255,0,0,0.5);
 }
 input[type=range]::-moz-range-track {
-   height: 5px;
-   background: #ddd;
-   border: none;
+  width: 100%;
+  height: 0.5rem;
+  cursor: pointer;
+  animate: 0.2s;
+  background: rgba(255,0,0,0.2);
+  border-radius: 1rem;
 }
-input[type=range]:focus::-moz-range-track {
-   background: #ccc;
+input[type=range]::-moz-range-thumb {
+  height: 1rem;
+  width: 1rem;
+  border: none;
+  border-radius: 50%;
+  background: red;
+  cursor: pointer;
 }
 
 @keyframes loading {
