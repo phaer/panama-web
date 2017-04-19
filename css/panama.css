@@ -189,6 +189,7 @@ body, html {
 }
 .playlist > ul li button {
   cursor: pointer;
+  color: #F00;
   background-color: inherit;
   border: none;
 }
