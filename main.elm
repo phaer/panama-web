@@ -10,10 +10,13 @@ A simple web frontend for mpv.io
 import String
 import WebSocket
 import Html exposing (..)
+import Time exposing (..)
+import Control exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Encode as JE
 import Json.Decode as JD
+import Control.Debounce as Debounce
 import Http
 
 websocket : String
@@ -30,6 +33,7 @@ main =
 
 type alias Model =
     { currentInput : String
+    , currentInputDebounceState : Control.State Msg
     , status : String
     , searchResults : List SearchItem
     , playing : Bool
@@ -64,13 +68,14 @@ type Msg
     | PlaylistAdd String
     | PlaylistRemove Int
     | PlaylistSelect Int
-    | SearchChanged (Result Http.Error (List SearchItem))
+    | SearchFired (Result Http.Error (List SearchItem))
+    | SearchDebounce (Control Msg)
 
 
 -- # Init
 init : (Model, Cmd Msg)
 init =
-    (Model "" "" [] False 0 0 [], sendCommand "update")
+    (Model "" Control.initialState "" [] False 0 0 [], sendCommand "update")
 
 sendJsonList : List JE.Value -> Cmd a
 sendJsonList l = WebSocket.send websocket <| JE.encode 0 <| JE.list l
@@ -125,16 +130,16 @@ getSearchResults query =
     let
       url = "https://searx.gotrust.de/?categories=videos&format=json&q=" ++ query
     in
-      Http.send SearchChanged (Http.get url searchDecoder)
+      Http.send SearchFired (Http.get url searchDecoder)
 
 decodeModel : String -> Model
 decodeModel s =
     case JD.decodeString modelDecoder s of
         Ok value -> value
-        Err msg -> Model "" (Debug.log "error: " msg) [] False 0 0 []
+        Err msg -> Model "" Control.initialState (Debug.log "error: " msg) [] False 0 0 []
 
 modelDecoder : JD.Decoder Model
-modelDecoder = JD.map4 (Model "" "" [])
+modelDecoder = JD.map4 (Model "" Control.initialState "" [])
                (JD.field "playing" JD.bool)
                (JD.field "volume" JD.int)
                (JD.field "position" JD.int)
@@ -186,12 +191,14 @@ update msg model =
     PlaylistSelect i ->
       (setCurrentItem model i, JE.int i |> sendProperty "playlist-select")
 
-    SearchChanged (Ok s) ->
+    SearchFired (Ok s) ->
       ({model | searchResults = s}, Cmd.none)
 
-    SearchChanged (Err _) ->
+    SearchFired (Err _) ->
       (model, Cmd.none)
 
+    SearchDebounce debMsg ->
+      Control.update (\s -> { model | currentInputDebounceState = s }) model.currentInputDebounceState debMsg
 
 -- # Subscriptions
 subscriptions : Model -> Sub Msg
@@ -246,6 +253,9 @@ slider n v handler =
         , span [ class "value" ] [ text <| toString v ]
       ]
 
+debounce : Msg -> Msg
+debounce = Debounce.trailing SearchDebounce (1 * Time.second)
+
 viewInput : Model -> Html Msg
 viewInput model =
     Html.form [class "input"
@@ -253,7 +263,7 @@ viewInput model =
               ]
         [ label [ for "input-text"
                 ] [text "🔍"]
-        , input [ onInput InputChanged
+        , input [ Html.Attributes.map debounce <| (onInput InputChanged)
                 , name "input-text"
                 , type_ "text"
                 , placeholder "Search or enter URL here…"
