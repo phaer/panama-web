@@ -184,12 +184,12 @@ body, html {
   cursor: pointer;
 }
 .playlist > ul li a {
-  color: #F00;
+  color: inherit;
   font-size: 0.75rem;
 }
 .playlist > ul li button {
   cursor: pointer;
-  color: #F00;
+  color: inherit;
   background-color: inherit;
   border: none;
 }
