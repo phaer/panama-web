@@ -225,6 +225,7 @@ viewInput model =
                 , placeholder "Search or enter URL here…"
                 , value model.currentInput
                 , class "input-text"
+                , autofocus True
                 ] []
         , button
               [ onClick <| PlaylistAdd model.currentInput ]
