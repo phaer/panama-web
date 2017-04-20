@@ -136,54 +136,23 @@ body, html {
 .search-results ul > li:first-child {
   border-top: none;
 }
-.search-results ul span {
+.search-results ul div {
   flex: 1 1 100%;
-  font-weight: bold;
+  display: flex;
+  flex-direction: column;
   padding: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
-}
-.search-results ul li img {
-  width: 20%;
-  cursor: pointer;
-}
-.search-results ul li a {
-  font-size: 0.75rem;
-  padding-right: 0.25rem;
 }
 
-.search-results {
-  max-height: 50%;
-  overflow-x: auto;
-  border-top: 1px red solid;
-  border-bottom: 1px red solid;
-}
-.search-results ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 1rem;
-}
-.search-results ul > li {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-top: 1px red dashed;
-}
-.search-results ul > li:first-child {
-  border-top: none;
-}
-.search-results ul span {
-  flex: 1 1 100%;
+.search-results ul div .search-item-title {
   font-weight: bold;
-  padding: 0.25rem;
-  white-space: nowrap;
+}
+.search-results ul div p {
+  margin: 0.25rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
+
 .search-results ul li img {
   width: 20%;
   cursor: pointer;
@@ -191,13 +160,16 @@ body, html {
 .search-results ul li a {
   color: red;
   font-size: 0.75rem;
+  padding-right: 0.25rem;
 }
 
 .playlist {
   flex: 1 1 100%;
   overflow-y: auto;
+  text-align: center;
 }
 .playlist > ul {
+  text-align: left;
   list-style: none;
   padding: 0;
   margin: 0;
