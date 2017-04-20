@@ -46,6 +46,7 @@ type alias SearchItem =
     { title : String
     , sourceUrl : String
     , thumbnail : Maybe String
+    , content : Maybe String
     }
 type alias PlaylistItem =
     { title : Maybe String
@@ -115,10 +116,11 @@ encodePlaylist playlist = JE.list <| List.map encodePlaylistItem playlist
 
 searchDecoder : JD.Decoder (List SearchItem)
 searchDecoder =
-    JD.field "results" <| JD.list <| JD.map3 SearchItem
+    JD.field "results" <| JD.list <| JD.map4 SearchItem
         (JD.field "title" JD.string)
         (JD.field "url" JD.string)
         (JD.maybe (JD.field "thumbnail" JD.string))
+        (JD.maybe (JD.field "content" JD.string))
 
 getSearchResults : String -> Cmd Msg
 getSearchResults query =
@@ -128,7 +130,7 @@ getSearchResults query =
     Cmd.none
   else
     let
-      url = "https://searx.gotrust.de/?categories=videos&format=json&q=" ++ query
+      url = "https://searx.gotrust.de/?categories=videos&engines=vimeo,youtube&format=json&q=" ++ query
     in
       Http.send SearchFired (Http.get url searchDecoder)
 
@@ -267,7 +269,6 @@ viewInput model =
                 , name "input-text"
                 , type_ "text"
                 , placeholder "Search or enter URL here…"
-                , value model.currentInput
                 , class "input-text"
                 , autofocus True
                 ] []
@@ -302,21 +303,37 @@ viewSearchItem item =
 
       Just val ->
         val
+    content = case item.content of
+      Nothing ->
+        ""
+
+      Just val ->
+        val
+
   in
     li []
       [ img [ onClick <| PlaylistAdd item.sourceUrl
             , src thumbnail
             ] []
-      , span [ onClick <| PlaylistAdd item.sourceUrl] [text item.title]
+      , div [] [ p [ onClick <| PlaylistAdd item.sourceUrl
+                   , class "search-item-title"] [text item.title]
+               , p [ onClick <| PlaylistAdd item.sourceUrl] [text content]
+               ]
       , a [ href item.sourceUrl, target "_blank"] [text "link"]
       ]
 
 viewPlaylist : Model -> Html Msg
 viewPlaylist model =
-  div [class "playlist"]
-    [ ul []
-      (List.map viewPlaylistItem model.playlist)
-    ]
+  let
+    content = case List.isEmpty model.playlist of
+      True ->
+        p [] [ Html.text "No items added yet :(" ]
+      False ->
+        ul []
+          (List.map viewPlaylistItem model.playlist)
+  in
+    div [class "playlist"]
+      [ content ]
 
 viewPlaylistItemClasses : PlaylistItem -> String
 viewPlaylistItemClasses item =
