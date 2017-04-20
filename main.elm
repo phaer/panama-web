@@ -10,13 +10,10 @@ A simple web frontend for mpv.io
 import String
 import WebSocket
 import Html exposing (..)
-import Time exposing (..)
-import Control exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Encode as JE
 import Json.Decode as JD
-import Control.Debounce as Debounce
 import Http
 
 websocket : String
@@ -33,7 +30,8 @@ main =
 
 type alias Model =
     { currentInput : String
-    , currentInputDebounceState : Control.State Msg
+    , currentInputDebounce : DebounceState
+    , currentSearch: String
     , status : String
     , searchResults : List SearchItem
     , playing : Bool
@@ -41,7 +39,8 @@ type alias Model =
     , position : Int
     , playlist : List PlaylistItem
     }
-
+type DebounceState =
+    Open | Wait | Received | Empty
 type alias SearchItem =
     { title : String
     , sourceUrl : String
@@ -69,14 +68,13 @@ type Msg
     | PlaylistAdd String
     | PlaylistRemove Int
     | PlaylistSelect Int
-    | SearchFired (Result Http.Error (List SearchItem))
-    | SearchDebounce (Control Msg)
+    | SearchResult (Result Http.Error (List SearchItem))
 
 
 -- # Init
 init : (Model, Cmd Msg)
 init =
-    (Model "" Control.initialState "" [] False 0 0 [], sendCommand "update")
+    (Model "" Empty "" "" [] False 0 0 [], sendCommand "update")
 
 sendJsonList : List JE.Value -> Cmd a
 sendJsonList l = WebSocket.send websocket <| JE.encode 0 <| JE.list l
@@ -122,26 +120,50 @@ searchDecoder =
         (JD.maybe (JD.field "thumbnail" JD.string))
         (JD.maybe (JD.field "content" JD.string))
 
-getSearchResults : String -> Cmd Msg
-getSearchResults query =
+debounceSearch : Model -> Model
+debounceSearch model =
   if
-    query == "" || String.startsWith "http" query
+    model.currentInput == ""
   then
-    Cmd.none
+    { model | currentInputDebounce = Empty }
   else
+    case model.currentInputDebounce of
+      Empty ->
+        { model | currentInputDebounce = Open, currentSearch = model.currentInput }
+      Received ->
+        if
+          model.currentSearch /= model.currentInput
+        then
+          { model | currentInputDebounce = Open, currentSearch = model.currentInput}
+        else
+          model
+      Open ->
+        { model | currentInputDebounce = Wait }
+      Wait ->
+        model
+
+getSearchResults : Model -> Cmd Msg
+getSearchResults model =
+  if
+    model.currentInputDebounce == Open
+    && model.currentInput /= ""
+    && not (String.startsWith "http" model.currentInput)
+  then
     let
-      url = "https://searx.gotrust.de/?categories=videos&engines=vimeo,youtube&format=json&q=" ++ query
+      url = "https://searx.gotrust.de/?categories=videos&engines=vimeo,youtube&format=json&q=" ++ model.currentInput
     in
-      Http.send SearchFired (Http.get url searchDecoder)
+      Http.send SearchResult (Http.get url searchDecoder)
+  else
+    Cmd.none
 
 decodeModel : String -> Model
 decodeModel s =
     case JD.decodeString modelDecoder s of
         Ok value -> value
-        Err msg -> Model "" Control.initialState (Debug.log "error: " msg) [] False 0 0 []
+        Err msg -> Model "" Empty "" (Debug.log "error: " msg) [] False 0 0 []
 
 modelDecoder : JD.Decoder Model
-modelDecoder = JD.map4 (Model "" Control.initialState "" [])
+modelDecoder = JD.map4 (Model "" Empty "" "" [])
                (JD.field "playing" JD.bool)
                (JD.field "volume" JD.int)
                (JD.field "position" JD.int)
@@ -182,7 +204,8 @@ update msg model =
       (decodeModel m, Cmd.none)
 
     InputChanged i ->
-      ({model | currentInput = i}, getSearchResults i)
+      (debounceSearch {model | currentInput = i }
+      , debounceSearch {model | currentInput = i } |> getSearchResults)
 
     PlaylistAdd i ->
       ({model | currentInput = ""}, JE.string i |> sendProperty "playlist-add")
@@ -193,14 +216,15 @@ update msg model =
     PlaylistSelect i ->
       (setCurrentItem model i, JE.int i |> sendProperty "playlist-select")
 
-    SearchFired (Ok s) ->
-      ({model | searchResults = s}, Cmd.none)
+    SearchResult (Ok s) ->
+      (debounceSearch {model | currentInputDebounce = Received, searchResults = s}
+      , debounceSearch {model | currentInputDebounce = Received, searchResults = s} |> getSearchResults)
+      --({model | searchResults = s, currentInputDebounce = model.currentInputDebounce - 1}, getSearchResults model)
 
-    SearchFired (Err _) ->
-      (model, Cmd.none)
+    SearchResult (Err _) ->
+      (debounceSearch {model | currentInputDebounce = Received}
+      , debounceSearch {model | currentInputDebounce = Received} |> getSearchResults)
 
-    SearchDebounce debMsg ->
-      Control.update (\s -> { model | currentInputDebounceState = s }) model.currentInputDebounceState debMsg
 
 -- # Subscriptions
 subscriptions : Model -> Sub Msg
@@ -255,9 +279,6 @@ slider n v handler =
         , span [ class "value" ] [ text <| toString v ]
       ]
 
-debounce : Msg -> Msg
-debounce = Debounce.trailing SearchDebounce (1 * Time.second)
-
 viewInput : Model -> Html Msg
 viewInput model =
     Html.form [class "input"
@@ -265,11 +286,12 @@ viewInput model =
               ]
         [ label [ for "input-text"
                 ] [text "🔍"]
-        , input [ Html.Attributes.map debounce <| (onInput InputChanged)
+        , input [ onInput InputChanged
                 , name "input-text"
                 , type_ "text"
                 , placeholder "Search or enter URL here…"
                 , class "input-text"
+                , value model.currentInput
                 , autofocus True
                 ] []
         , button [] [text "Go!"]
@@ -289,10 +311,24 @@ viewControls model =
 
 viewSearch : Model -> Html Msg
 viewSearch model =
-  div [class "search-results"]
-    [ ul []
-      (List.map viewSearchItem model.searchResults)
-    ]
+  let
+    content =
+      if
+          model.currentInput == ""
+      then
+          Html.text ""
+      else
+          if
+              List.isEmpty model.searchResults
+              || model.currentInput /= model.currentSearch
+          then
+              p [] [ Html.text ("Searching for '" ++ model.currentInput ++ "'") ]
+          else
+              ul []
+                (List.map viewSearchItem model.searchResults)
+  in
+    div [class "search-results"]
+      [ content ]
 
 viewSearchItem : SearchItem -> Html Msg
 viewSearchItem item =
