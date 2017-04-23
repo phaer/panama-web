@@ -19,6 +19,9 @@ import Http
 websocket : String
 websocket = "ws://127.0.0.1:3000/socket"
 
+searx : String
+searx = "http://URL/of/searx/?categories=videos&engines=vimeo,youtube&format=json&q="
+
 main : Program Never Model Msg
 main =
     Html.program
@@ -40,7 +43,7 @@ type alias Model =
     , playlist : List PlaylistItem
     }
 type DebounceState =
-    Open | Wait | Received | Empty
+    Open | Wait
 type alias SearchItem =
     { title : String
     , sourceUrl : String
@@ -74,7 +77,7 @@ type Msg
 -- # Init
 init : (Model, Cmd Msg)
 init =
-    (Model "" Empty "" "" [] False 0 0 [], sendCommand "update")
+    (Model "" Open "" "" [] False 0 0 [], sendCommand "update")
 
 sendJsonList : List JE.Value -> Cmd a
 sendJsonList l = WebSocket.send websocket <| JE.encode 0 <| JE.list l
@@ -120,50 +123,48 @@ searchDecoder =
         (JD.maybe (JD.field "thumbnail" JD.string))
         (JD.maybe (JD.field "content" JD.string))
 
+validateSearch : Model -> Bool
+validateSearch model =
+    if
+      model.currentInputDebounce == Open
+      && model.currentInput /= model.currentSearch
+      && not (String.isEmpty model.currentInput)
+      && not (String.startsWith "http" model.currentInput)
+    then
+      True
+    else
+      False
+
 debounceSearch : Model -> Model
 debounceSearch model =
   if
-    model.currentInput == ""
+    validateSearch model == True
   then
-    { model | currentInputDebounce = Empty }
+    { model | currentInputDebounce = Wait, currentSearch = model.currentInput }
   else
-    case model.currentInputDebounce of
-      Empty ->
-        { model | currentInputDebounce = Open, currentSearch = model.currentInput }
-      Received ->
-        if
-          model.currentSearch /= model.currentInput
-        then
-          { model | currentInputDebounce = Open, currentSearch = model.currentInput}
-        else
-          model
-      Open ->
-        { model | currentInputDebounce = Wait }
-      Wait ->
-        model
+    model
 
 getSearchResults : Model -> Cmd Msg
 getSearchResults model =
   if
-    model.currentInputDebounce == Open
-    && model.currentInput /= ""
-    && not (String.startsWith "http" model.currentInput)
+    validateSearch model == True
   then
     let
-      url = "https://searx.gotrust.de/?categories=videos&engines=vimeo,youtube&format=json&q=" ++ model.currentInput
+      url = searx ++ model.currentInput
     in
       Http.send SearchResult (Http.get url searchDecoder)
   else
     Cmd.none
 
-decodeModel : String -> Model
-decodeModel s =
-    case JD.decodeString modelDecoder s of
-        Ok value -> value
-        Err msg -> Model "" Empty "" (Debug.log "error: " msg) [] False 0 0 []
 
-modelDecoder : JD.Decoder Model
-modelDecoder = JD.map4 (Model "" Empty "" "" [])
+decodeModel : Model -> String -> Model
+decodeModel model s =
+    case JD.decodeString (modelDecoder model) s of
+        Ok value -> value
+        Err msg -> Model model.currentInput model.currentInputDebounce model.currentSearch (Debug.log "error: " msg) model.searchResults False 0 0 []
+
+modelDecoder : Model -> JD.Decoder Model
+modelDecoder model = JD.map4 (Model model.currentInput model.currentInputDebounce model.currentSearch "" model.searchResults)
                (JD.field "playing" JD.bool)
                (JD.field "volume" JD.int)
                (JD.field "position" JD.int)
@@ -201,11 +202,11 @@ update msg model =
       ({model | playlist = pl}, Cmd.none)
 
     MessageReceived m ->
-      (decodeModel m, Cmd.none)
+      (decodeModel model m, Cmd.none)
 
     InputChanged i ->
       (debounceSearch {model | currentInput = i }
-      , debounceSearch {model | currentInput = i } |> getSearchResults)
+      , getSearchResults {model | currentInput = i })
 
     PlaylistAdd i ->
       ({model | currentInput = ""}, JE.string i |> sendProperty "playlist-add")
@@ -217,13 +218,13 @@ update msg model =
       (setCurrentItem model i, JE.int i |> sendProperty "playlist-select")
 
     SearchResult (Ok s) ->
-      (debounceSearch {model | currentInputDebounce = Received, searchResults = s}
-      , debounceSearch {model | currentInputDebounce = Received, searchResults = s} |> getSearchResults)
+      (debounceSearch {model | currentInputDebounce = Open, searchResults = s}
+      , getSearchResults {model | currentInputDebounce = Open, searchResults = s})
       --({model | searchResults = s, currentInputDebounce = model.currentInputDebounce - 1}, getSearchResults model)
 
     SearchResult (Err _) ->
-      (debounceSearch {model | currentInputDebounce = Received}
-      , debounceSearch {model | currentInputDebounce = Received} |> getSearchResults)
+      (debounceSearch {model | currentInputDebounce = Open}
+      , getSearchResults {model | currentInputDebounce = Open})
 
 
 -- # Subscriptions
@@ -319,8 +320,8 @@ viewSearch model =
           Html.text ""
       else
           if
+              validateSearch model == True ||
               List.isEmpty model.searchResults
-              || model.currentInput /= model.currentSearch
           then
               p [] [ Html.text ("Searching for '" ++ model.currentInput ++ "'") ]
           else
