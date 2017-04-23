@@ -304,7 +304,7 @@ viewInput model =
               , onSubmit <| PlaylistAdd model.currentInput
               ]
         [ label [ for "input-text"
-                ] [text "🔍"]
+                ] [text "🔍︎"]
         , input [ onInput InputChanged
                 , name "input-text"
                 , type_ "text"
@@ -325,7 +325,7 @@ viewControls model =
         , class <| if model.playing then "pause" else "play" ]
         [text <| if model.playing then "| |" else "▶"]
     , slider "position" model.position (parseIntWithDefault 0 >> PositionChanged)
-    , slider "🔊" model.volume (parseIntWithDefault 0 >> VolumeChanged)
+    , slider "🔊︎" model.volume (parseIntWithDefault 0 >> VolumeChanged)
     ]
 
 viewSearch : Model -> Html Msg

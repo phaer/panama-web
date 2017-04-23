@@ -92,7 +92,7 @@ a:hover, button:hover {
   flex: 1 1 50%;
   min-width: 0;
 }
-.controls > .🔊 {
+.controls > .🔊︎ {
   flex: 1 0 20%;
   min-width: 0;
 }
