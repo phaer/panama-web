@@ -181,9 +181,27 @@ encodeModel model =
               ]
 
 
-setCurrentItem: Model -> Int -> Model
+setCurrentItem : Model -> Int -> Model
 setCurrentItem m i = {m | playlist = List.indexedMap (\n p -> {p | current = n == i}) m.playlist}
 
+validateInput : String -> Bool
+validateInput s =
+  if
+    not (String.isEmpty s)
+    && String.contains "://" s
+  then
+    True
+  else
+    False
+
+checkInputValidation : String -> Cmd Msg
+checkInputValidation i =
+  if
+    validateInput i
+  then
+    JE.string i |> sendProperty "playlist-add"
+  else
+    Cmd.none
 
 -- # Update
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -209,7 +227,7 @@ update msg model =
       , getSearchResults {model | currentInput = i })
 
     PlaylistAdd i ->
-      ({model | currentInput = ""}, JE.string i |> sendProperty "playlist-add")
+      ({model | currentInput = ""}, checkInputValidation i)
 
     PlaylistRemove i ->
       (model, JE.int i |> sendProperty "playlist-remove")
@@ -315,7 +333,8 @@ viewSearch model =
   let
     content =
       if
-          model.currentInput == ""
+          validateInput model.currentInput
+          || String.isEmpty model.currentInput
       then
           Html.text ""
       else
