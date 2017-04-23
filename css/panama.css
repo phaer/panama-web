@@ -1,12 +1,13 @@
-.debug {
-  display: none;
-}
 body, html {
+  margin: 0;
   font-family: 'Courier New', monospace;
   background-color: black;
   color: #F00;
   width: 100%;
   height: 100%;
+}
+.debug {
+  display: none;
 }
 .container {
   max-width: 60rem;
@@ -105,6 +106,10 @@ body, html {
 }
 .slider .slider-input {
   width: 100%;
+}
+.slider .value {
+  flex: 1 0 1.5rem;
+  text-align: right;
 }
 
 .search-results {
