@@ -17,10 +17,12 @@ import Json.Decode as JD
 import Http
 
 websocket : String
+--websocket = "ws://192.168.1.105:3000/socket"
 websocket = "ws://127.0.0.1:3000/socket"
 
 searx : String
-searx = "http://URL/of/searx/?categories=videos&engines=vimeo,youtube&format=json&q="
+searx = "http://192.168.1.105:81/?categories=videos&engines=youtube&format=json&q="
+--searx = "http://URL/of/searx/?categories=videos&engines=vimeo,youtube&format=json&q="
 
 main : Program Never Model Msg
 main =
@@ -35,6 +37,7 @@ type alias Model =
     { currentInput : String
     , currentInputDebounce : DebounceState
     , currentSearch: String
+    , toggleSettings: Bool
     , status : String
     , searchResults : List SearchItem
     , playing : Bool
@@ -63,6 +66,7 @@ type alias Playlist = List PlaylistItem
 
 type Msg
     = TogglePlay
+    | ToggleSettings
     | VolumeChanged Int
     | PositionChanged Int
     | PlaylistChanged (List PlaylistItem)
@@ -77,7 +81,7 @@ type Msg
 -- # Init
 init : (Model, Cmd Msg)
 init =
-    (Model "" Open "" "" [] False 0 0 [], sendCommand "update")
+    (Model "" Open "" False "" [] False 0 0 [], sendCommand "update")
 
 sendJsonList : List JE.Value -> Cmd a
 sendJsonList l = WebSocket.send websocket <| JE.encode 0 <| JE.list l
@@ -161,14 +165,16 @@ decodeModel : Model -> String -> Model
 decodeModel model s =
     case JD.decodeString (modelDecoder model) s of
         Ok value -> value
-        Err msg -> Model model.currentInput model.currentInputDebounce model.currentSearch (Debug.log "error: " msg) model.searchResults False 0 0 []
+        Err msg -> { model | status = (Debug.log "error: " msg)}
 
 modelDecoder : Model -> JD.Decoder Model
-modelDecoder model = JD.map4 (Model model.currentInput model.currentInputDebounce model.currentSearch "" model.searchResults)
+modelDecoder model = JD.map4 (Model model.currentInput model.currentInputDebounce model.currentSearch model.toggleSettings "" model.searchResults)
                (JD.field "playing" JD.bool)
                (JD.field "volume" JD.int)
                (JD.field "position" JD.int)
                (JD.field "playlist" playlistDecoder)
+
+
 
 encodeModel : Model -> JE.Value
 encodeModel model =
@@ -209,6 +215,9 @@ update msg model =
   case msg of
     TogglePlay ->
       ({model | playing = (not model.playing)}, sendCommand "toggle-play")
+
+    ToggleSettings ->
+      ({model | toggleSettings = (not model.toggleSettings)}, Cmd.none)
 
     VolumeChanged v ->
       ({model | volume = v}, JE.int v |> sendProperty "volume")
@@ -259,6 +268,7 @@ view model =
       , viewLog model
       , viewInput model
       , viewControls model
+      , viewSettings model
       , viewSearch model
       , viewPlaylist model
       , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "./css/panama.css" ] []
@@ -322,10 +332,13 @@ viewControls model =
     [
       button
         [ onClick <| TogglePlay
-        , class <| if model.playing then "pause" else "play" ]
+        , class "play-toggle" ]
         [text <| if model.playing then "| |" else "▶"]
     , slider "position" model.position (parseIntWithDefault 0 >> PositionChanged)
     , slider "🔊︎" model.volume (parseIntWithDefault 0 >> VolumeChanged)
+    , button
+        [ onClick <| ToggleSettings ]
+        [ text "⚙"]
     ]
 
 viewSearch : Model -> Html Msg
@@ -404,6 +417,25 @@ viewPlaylistItem item = li [ class <| viewPlaylistItemClasses item]
                         , a [ href item.sourceUrl, target "_blank"] [text "link"]
                         , button [ onClick <| PlaylistRemove item.index] [text "×"]
                         ]
+
+settingToggle : String -> Bool -> a -> Html a
+settingToggle t v handler =
+  li [ class "setting"
+     , onClick <| handler ]
+    [ span [ class "setting-title" ] [ text t ]
+      , span [] [ text <| toString v ]
+    ]
+
+viewSettings : Model -> Html Msg
+viewSettings model =
+    case model.toggleSettings of
+      True ->
+          div [ class "settings" ]
+              [ ul [ class "settings-list" ]
+                []
+              ]
+      False ->
+          div [] []
 
 viewMessage : String -> Html Msg
 viewMessage msg =
