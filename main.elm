@@ -29,6 +29,7 @@ main =
 
 type alias Model =
     { currentInput : String
+    , toggleSettings : Bool
     , status : String
     , playing : Bool
     , volume : Int
@@ -49,6 +50,7 @@ type alias Playlist = List PlaylistItem
 
 type Msg
     = TogglePlay
+    | ToggleSettings
     | VolumeChanged Int
     | PositionChanged Int
     | PlaylistChanged (List PlaylistItem)
@@ -62,7 +64,7 @@ type Msg
 -- # Init
 init : (Model, Cmd Msg)
 init =
-    (Model "" "" False 0 0 [], sendCommand "update")
+    (Model "" False "" False 0 0 [], sendCommand "update")
 
 sendJsonList : List JE.Value -> Cmd a
 sendJsonList l = WebSocket.send websocket <| JE.encode 0 <| JE.list l
@@ -100,14 +102,14 @@ encodePlaylistItem item =
 encodePlaylist : Playlist -> JE.Value
 encodePlaylist playlist = JE.list <| List.map encodePlaylistItem playlist
 
-decodeModel : String -> Model
-decodeModel s =
-    case JD.decodeString modelDecoder s of
+decodeModel : Model -> String -> Model
+decodeModel model s =
+    case JD.decodeString (modelDecoder model) s of
         Ok value -> value
-        Err msg -> Model "" (Debug.log "error: " msg) False 0 0 []
+        Err msg -> { model | status = (Debug.log "error: " msg)}
 
-modelDecoder : JD.Decoder Model
-modelDecoder = JD.map4 (Model "" "")
+modelDecoder : Model -> JD.Decoder Model
+modelDecoder model = JD.map4 (Model model.currentInput model.toggleSettings "")
                (JD.field "playing" JD.bool)
                (JD.field "volume" JD.int)
                (JD.field "position" JD.int)
@@ -125,9 +127,13 @@ encodeModel model =
 
 
 
-setCurrentItem: Model -> Int -> Model
+setCurrentItem : Model -> Int -> Model
 setCurrentItem m i = {m | playlist = List.indexedMap (\n p -> {p | current = n == i}) m.playlist}
 
+isValidInput : String -> Bool
+isValidInput s =
+    not (String.isEmpty s)
+    && String.contains "://" s
 
 -- # Update
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -135,6 +141,9 @@ update msg model =
   case msg of
     TogglePlay ->
       ({model | playing = (not model.playing)}, sendCommand "toggle-play")
+
+    ToggleSettings ->
+      ({model | toggleSettings = (not model.toggleSettings)}, Cmd.none)
 
     VolumeChanged v ->
       ({model | volume = v}, JE.int v |> sendProperty "volume")
@@ -146,13 +155,18 @@ update msg model =
       ({model | playlist = pl}, Cmd.none)
 
     MessageReceived m ->
-      (decodeModel m, Cmd.none)
+      (decodeModel model m, Cmd.none)
 
     InputChanged i ->
       ({model | currentInput = i}, Cmd.none)
 
     PlaylistAdd i ->
-      ({model | currentInput = ""}, JE.string i |> sendProperty "playlist-add")
+      if
+          isValidInput i
+      then
+          ({model | currentInput = ""}, JE.string i |> sendProperty "playlist-add")
+      else
+          (model, Cmd.none)
 
     PlaylistRemove i ->
       (model, JE.int i |> sendProperty "playlist-remove")
@@ -174,6 +188,7 @@ view model =
       , viewLog model
       , viewInput model
       , viewControls model
+      , viewSettings model
       , viewPlaylist model
       , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "./css/panama.css" ] []
       ]
@@ -218,18 +233,16 @@ viewInput model =
               , onSubmit <| PlaylistAdd model.currentInput
               ]
         [ label [ for "input-text"
-                ] [text "🔍"]
+                ] [text "🔍︎"]
         , input [ onInput InputChanged
                 , name "input-text"
                 , type_ "text"
-                , placeholder "Search or enter URL here…"
+                , placeholder "Enter URL here…"
                 , value model.currentInput
                 , class "input-text"
                 , autofocus True
                 ] []
-        , button
-              [ onClick <| PlaylistAdd model.currentInput ]
-              [text "Go!"]
+        , button [] [text "Go!"]
         ]
 
 viewControls : Model -> Html Msg
@@ -238,19 +251,27 @@ viewControls model =
     [
       button
         [ onClick <| TogglePlay
-        , class <| if model.playing then "pause" else "play" ]
+        , class "play-toggle" ]
         [text <| if model.playing then "| |" else "▶"]
     , slider "position" model.position (parseIntWithDefault 0 >> PositionChanged)
-    , slider "🔊" model.volume (parseIntWithDefault 0 >> VolumeChanged)
+    , slider "🔊︎" model.volume (parseIntWithDefault 0 >> VolumeChanged)
+    , button
+        [ onClick <| ToggleSettings ]
+        [ text "⚙" ]
     ]
 
 
 viewPlaylist : Model -> Html Msg
 viewPlaylist model =
-  div [class "playlist"]
-    [ ul []
-      (List.map viewPlaylistItem model.playlist)
-    ]
+  let
+    content = case List.isEmpty model.playlist of
+      True ->
+        p [] [ Html.text "No items added yet :(" ]
+      False ->
+        ul [] (List.map viewPlaylistItem model.playlist)
+  in
+    div [class "playlist"]
+      [content]
 
 viewPlaylistItemClasses : PlaylistItem -> String
 viewPlaylistItemClasses item =
@@ -265,6 +286,23 @@ viewPlaylistItem item = li [ class <| viewPlaylistItemClasses item]
                         , a [ href item.sourceUrl, target "_blank"] [text "link"]
                         , button [ onClick <| PlaylistRemove item.index] [text "×"]
                         ]
+
+settingToggle : String -> Bool -> a -> Html a
+settingToggle t v handler =
+    li [ class "setting"
+       , onClick <| handler ]
+       [ span [ class "setting-title" ]
+              [ text t]
+       , span [] [ text <| toString v ]]
+
+viewSettings : Model -> Html Msg
+viewSettings model =
+    case model.toggleSettings of
+        True ->
+            div [ class "settings"]
+                [ ul [ class "settings-list" ] [] ]
+        False ->
+            div [] []
 
 viewMessage : String -> Html Msg
 viewMessage msg =
