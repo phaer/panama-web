@@ -2,13 +2,19 @@
   display: none;
 }
 body, html {
-  font-family: monospace;
+  margin: 0;
+  font-family: 'Courier New', monospace;
   background-color: black;
-  color: white;
+  color: #F00;
   width: 100%;
   height: 100%;
 }
+a:hover, button:hover {
+  opacity: 0.9;
+}
 .container {
+  max-width: 60rem;
+  margin: 0 auto;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -18,13 +24,12 @@ body, html {
   flex: 1 0 3rem;
   text-align: center;
   display: flex;
-  color: red;
   align-items: center;
 }
 .input > * {
   flex: 1 0 3rem;
   font-size: 2rem;
-  font-family: monospace;
+  font-family: 'Courier New', monospace;
   background-color: inherit;
   color: inherit;
   border: none;
@@ -33,32 +38,46 @@ body, html {
 .input > label {
   height: 3rem;
   width: 3rem;
-  color: red;
   padding: 0;
 }
 .input > .input-text {
   flex: 1 1 100%;
+  min-width: 0;
   height: 3rem;
+  border-bottom: 1px #F00 dashed;
 }
+.input > .input-text:focus {
+  border-bottom: 1px #F00 dashed;
+  outline: none;
+}
+.input > .input-text::-webkit-input-placeholder {
+  color: #F00;
+}
+.input > .input-text::-moz-placeholder {
+  color: #F00;
+}
+
 .input > button {
   cursor: pointer;
+  background-color: #F00;
+  color: black;
+  height: 3rem;
 }
 
 .controls {
   flex: 1 0 3rem;
   display: flex;
   font-size: 1rem;
-  font-family: monospace;
-  color: red;
+  font-family: 'Courier New', monospace;
 }
 .controls > * {
   display: flex;
   padding: 0 0.25rem;
 }
 .controls > button {
-  flex: 1 0 3rem;
-  background-color: red;
-  color: black;
+  flex-shrink: 0;
+  background-color: #000;
+  color: #F00;
   border: none;
   font-size: inherit;
   font-weight: bold;
@@ -68,41 +87,168 @@ body, html {
   padding: 0;
   cursor: pointer;
 }
-.controls > .position {
-  flex: 1 1 100%;
+.controls > .play-toggle {
+  background-color: #F00;
+  color: #000;
 }
-.controls > .🔊 {
-  flex: 1 1 10%;
+.controls > .position {
+  flex: 1 1 50%;
+  min-width: 0;
+}
+.controls > .🔊︎ {
+  flex: 1 0 20%;
+  min-width: 0;
 }
 
 .slider {
   align-items: center;
 }
+.slider > * {
+  min-width: 0;
+  flex-shrink: 0;
+  padding: 0 0.25rem;
+}
 .slider .slider-div {
   flex: 1 1 100%;
-  display: flex;
 }
 .slider .slider-input {
-  flex: 1 1 100%;
+  width: 100%;
+}
+.slider .value {
+  flex: 1 0 1.5rem;
+  text-align: right;
 }
 
-.playlist {
-  flex: 1 1 100%;
+.settings {
+  position: relative;
+}
+.settings > .settings-list {
+  position: absolute;
+  max-width: 20rem;
+  max-height: 20rem;
+  background: black;
+  width: 100%;
+  right: 0;
+  border: 1px solid red;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
   overflow-y: auto;
 }
-.playlist > ul {
+.settings > .settings-list::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.settings > .settings-list::-webkit-scrollbar-track {
+  background-color: #F00;
+}
+.settings > .settings-list::-webkit-scrollbar-thumb {
+  background-color: #220000;
+}
+.settings > .settings-list .setting {
+  padding: 1rem;
+  display: flex;
+  cursor: pointer;
+  border-top: 1px dashed #F00;
+}
+.settings > .settings-list .setting:first-child {
+  border: none;
+}
+.settings > .settings-list .setting .setting-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.search-results {
+  max-height: 30rem;
+  overflow-x: auto;
+  border: 1px #F00 solid;
+  text-align: center;
+}
+.search-results::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.search-results::-webkit-scrollbar-track {
+  background-color: #F00;
+}
+.search-results::-webkit-scrollbar-thumb {
+  background-color: #220000;
+}
+.search-results > p {
+  margin: 0.5rem 0.25rem;
+}
+.search-results > p::after {
+  animation: loading 3s linear infinite;
+  content: '...';
+}
+.search-results ul {
+  text-align: left;
   list-style: none;
   padding: 0;
   margin: 0;
   font-size: 1rem;
 }
+.search-results ul > li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px #F00 dashed;
+}
+.search-results ul > li:first-child {
+  border-top: none;
+}
+.search-results ul div {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+.search-results ul div .search-item-title {
+  font-weight: bold;
+}
+.search-results ul div p {
+  margin: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-results ul li img {
+  width: 20%;
+  cursor: pointer;
+}
+.search-results ul li a {
+  color: #F00;
+  font-size: 0.75rem;
+  padding-right: 0.25rem;
+}
+
+.playlist {
+  flex: 1 1 100%;
+  overflow-y: auto;
+  text-align: center;
+}
+.playlist > ul {
+  text-align: left;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 1rem;
+  border: 1px #F00 solid;
+  border-left: none;
+  border-right: none;
+}
 .playlist > ul li {
   padding: 0.25rem;
   display: flex;
   align-items: center;
+  border-top: 1px #F00 dashed;
 }
-.playlist > ul li:nth-child(2n+1) {
-  background-color: #222;
+.playlist > ul li:first-child {
+  border-top: none;
 }
 .playlist > ul li span {
   flex: 1 1 50%;
@@ -112,18 +258,18 @@ body, html {
   cursor: pointer;
 }
 .playlist > ul li a {
-  color: red;
+  color: inherit;
   font-size: 0.75rem;
 }
 .playlist > ul li button {
   cursor: pointer;
+  color: inherit;
   background-color: inherit;
-  color: red;
   border: none;
 }
 
 .current {
-  color: red;
+  color: #FFF;
 }
 .current::before {
   padding: 0 0.25rem;
@@ -135,15 +281,51 @@ body, html {
 }
 
 input[type=range] {
+  -webkit-appearance: none;
+  margin: 0;
+  width: 100%;
+  background: transparent;
+}
+input[type=range]:focus {
+  outline: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 0.5rem;
   cursor: pointer;
+  animate: 0.2s;
+  background: #000;
+  border: 0.1rem #F00 solid;
+}
+input[type=range]::-webkit-slider-thumb {
+  height: 1rem;
+  width: 1rem;
+  background: #F00;
+  border: 0.1rem #F00 solid;
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -0.25rem;
+}
+input[type=range]:active::-webkit-slider-runnable-track {
+  background: #F00;
+}
+input[type=range]:active::-webkit-slider-thumb {
+  background: #000;
 }
 input[type=range]::-moz-range-track {
-   height: 5px;
-   background: #ddd;
-   border: none;
+  width: 100%;
+  height: 0.5rem;
+  cursor: pointer;
+  animate: 0.2s;
+  background: #000;
+  border: 0.1rem #F00 solid;
 }
-input[type=range]:focus::-moz-range-track {
-   background: #ccc;
+input[type=range]::-moz-range-thumb {
+  height: 1rem;
+  width: 1rem;
+  border: none;
+  background: #F00;
+  cursor: pointer;
 }
 
 @keyframes loading {
